@@ -86,8 +86,8 @@ ZN
 not(A1 or A2)
 
 Gate
-3
-NAND2_X1 NAND2_X2 NAND2_X3
+4
+NAND2_X1 NAND2_X2 NAND2_X3 NAND2_X4
 2
 A1 A2
 1
@@ -285,3 +285,12 @@ A1 A2 A3 A4
 ZN
 (((A1 or A2) or A3) or A4)
 
+Reg
+2
+SDFF_X1 SDFF_X2
+4
+D CK SE SI
+2
+Q QN
+((not(CK) and Q) or (CK and (((SE and SI) or (D and not(SE)))) ))
+((not(CK) and not(Q)) or (CK and not(  (((SE and SI) or (D and not(SE)))) )))
