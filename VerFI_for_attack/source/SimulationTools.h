@@ -29,7 +29,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //***************************************************************************************
-
+#include "curses.h"
 int MakeCircuitDepth(SignalStruct** Signals, int NumberOfSignals, CellTypeStruct** CellTypes, CellStruct** Cells,
 	int* Gates, int NumberOfGates, short &MaxDepth, int** &CellsInDepth, int* &NumberOfCellsInDepth)
 {
@@ -212,8 +212,9 @@ int RunSimulation(SignalStruct** Signals, int ClockSignal, int Max_No_ClockCycle
 			if (NumberOfWaitedClockCycles == -1)
 			{
 				for (SignalIndex = 0;SignalIndex < EndSimCondition_NumberOfSignals;SignalIndex++)
-					if (SignalValues[EndSimCondition_Signals[SignalIndex]] != EndSimCondition_Values[SignalIndex])
+					if (SignalValues[EndSimCondition_Signals[SignalIndex]] != EndSimCondition_Values[SignalIndex]){
 						break;
+          }
 
 				if (SignalIndex >= EndSimCondition_NumberOfSignals)
 					NumberOfWaitedClockCycles = 0;
@@ -396,11 +397,12 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	if (NumberOfSimulations > 600000000L)
 	{
 		printf("Number of simulations %d is over the threshold", NumberOfSimulations);
-		_getch();
+		getch();
+
 		return 1;
 	}
 
-	printf("Number of simulations: %d\n", NumberOfSimulations);
+	printf("Number of simulations: %d\r\n", NumberOfSimulations);
 
 	SimulationResults = (SimulationResultStruct *)malloc(NumberOfSimulations * sizeof(SimulationResultStruct));
 
@@ -528,7 +530,7 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 			int    elapsed_secs = int(double(clock() - begin) / CLOCKS_PER_SEC);
 			char   Str1[200];
 
-			sprintf(Str1, "%04d:%02d Total: %d  Ineffective: %d  Detected: %d  Non-detected: %d  RunTimeOver: %d\n", elapsed_secs / 60, elapsed_secs % 60,
+			sprintf(Str1, "%04d:%02d Total: %d  Ineffective: %d  Detected: %d  Non-detected: %d  RunTimeOver: %d \r\n", elapsed_secs / 60, elapsed_secs % 60,
 				SimulationCounter, TotalIneffective, TotalDetected, TotalNondetected, TotalRunTimeOver);
 
 			printf(Str1);
@@ -552,8 +554,9 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	int    elapsed_secs = int(double(clock() - begin) / CLOCKS_PER_SEC);
 	char   Str1[200];
 
-	sprintf(Str1, "%04d:%02d Total: %d  Ineffective: %d  Detected: %d  Non-detected: %d  RunTimeOver: %d\n", elapsed_secs / 60, elapsed_secs % 60,
-		SimulationCounter, TotalIneffective, TotalDetected, TotalNondetected, TotalRunTimeOver);
+  float pi_ = (1.0*TotalIneffective)/(TotalDetected+TotalNondetected); // Fault Ineffectivity Rate 
+  sprintf(Str1, "%04d:%02d Total: %d  Ineffective: %d  Detected: %d  Non-detected: %d  RunTimeOver: %d   FaultIneffRate: %f\r\n", elapsed_secs / 60, elapsed_secs % 60,
+		SimulationCounter, TotalIneffective, TotalDetected, TotalNondetected, TotalRunTimeOver, pi_);
 
 	printf(Str1);
 	fprintf(SummaryFile, Str1);

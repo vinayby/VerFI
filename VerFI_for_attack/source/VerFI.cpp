@@ -29,7 +29,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "cstdio"
-#include "conio.h"
+#include "curses.h"
 #include "stdlib.h"
 #include "string.h"
 #include "time.h"
@@ -296,18 +296,18 @@ int main(int argc, char *argv[])
 
 	if (!res)
 		PrintResultInFile(ResultFileName, NumberOfSimulations, SimulationResults);
-
 	if (res)
 	{
 		printf("\nerror");
-		_getch();
+		getch();
 		return 1;
 	}
 	else
 	{
 		printf("done");
-		_getch();
+		//getch();
 		return 0;
 	}
+
 }
 

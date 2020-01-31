@@ -66,11 +66,11 @@ int ReadCellReportFile(HierarchyStruct** &Hierarchy, int &NumberOfHierarchy, cha
 			strcpy(StrList[i], StrList[i - 1]);
 
 		ReadNonCommentFromFile(CellReportFile, StrList[0], "**");
-	} while ((strcmp(StrList[4], "Cell") |
-		strcmp(StrList[3], "Reference") |
-		strcmp(StrList[2], "Library") |
-		strcmp(StrList[1], "Area") |
-		strcmp(StrList[0], "Attributes")) & (!feof(CellReportFile)));
+	} while ((strcmp(StrList[4], "Cell") != 0|
+		strcmp(StrList[3], "Reference") != 0|
+		strcmp(StrList[2], "Library") != 0|
+		strcmp(StrList[1], "Area") != 0 |
+		strcmp(StrList[0], "Attributes") !=0 ) && (!feof(CellReportFile)));
 
 	if (feof(CellReportFile))
 	{
@@ -116,7 +116,6 @@ int ReadCellReportFile(HierarchyStruct** &Hierarchy, int &NumberOfHierarchy, cha
 			StrReplaceChar(Str1, ']', '_');
 			Hierarchy[NumberOfHierarchy]->CellName = (char *)malloc(strlen(Str1) + 2);
 			strcpy(Hierarchy[NumberOfHierarchy]->CellName, Str1);
-
 			for (CellTypeIndex = 0;CellTypeIndex < NumberOfCellTypes;CellTypeIndex++)
 			{
 				for (CaseIndex = 0;CaseIndex < CellTypes[CellTypeIndex]->NumberOfCases;CaseIndex++)

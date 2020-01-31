@@ -117,7 +117,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 	do {
 		do {
 			ReadNonCommentFromFile(DesignFile, Str1, "//");
-		} while ((!feof(DesignFile)) & strcmp(Str1, "module"));
+		} while ((!feof(DesignFile)) && (0!=strcmp(Str1, "module")));
 
 		if (!feof(DesignFile))
 		{
@@ -126,7 +126,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 			{
 				do {
 					ReadNonCommentFromFile(DesignFile, Str1, "//");
-				} while ((!feof(DesignFile)) & strcmp(Str1, "endmodule"));
+				} while ((!feof(DesignFile)) && (0!=strcmp(Str1, "endmodule")));
 			}
 			else
 			{
@@ -256,6 +256,14 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 
 								if (ch == ' ')
 								{
+//                   if (Task == Task_find_signal_name) // signal name in an instantiation port-mapping has spaces before the ) 
+//                   {
+//                     do {
+//                       ch = Str2[i++];
+//                     }while (ch != ')');
+//                     i--; // let ) be found later
+//                   }
+
 									if (j)
 									{
 										if (Task == Task_find_module_type)
@@ -461,6 +469,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 											}
 
 											Task = Task_find_close_bracket;
+
 										}
 
 										j = 0;
@@ -521,7 +530,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 									}
 									else
 									{
-										printf("Error!\n");
+										printf("Error1!\n");
 										fclose(DesignFile);
 										free(Str1);
 										free(Str2);
@@ -551,6 +560,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 										}
 										else
 											SignalIndex = -1;
+
 
 										if (SignalIndex < NumberOfSignals)
 										{
@@ -596,7 +606,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 									}
 									else
 									{
-										printf("Error!\n");
+										printf("Error2!\n");
 										fclose(DesignFile);
 										free(Str1);
 										free(Str2);
@@ -629,7 +639,7 @@ int ReadDesignFile(SignalStruct** &Signals, int &NumberOfSignals, int* &Inputs, 
 							Str2[0] = 0;
 						}
 
-					} while ((strcmp(Str1, "endmodule")) & (!feof(DesignFile)));
+					} while ((strcmp(Str1, "endmodule")!=0) && (!feof(DesignFile)));
 
 					finished = 1;
 				}

@@ -746,7 +746,7 @@ int ReadSimulationFile(SignalStruct** Signals, int NumberOfSignals, char* InputS
 
 	if (SimulationFileCheckList != ((1 << 19) - 1))
 	{
-		printf("simulation file: all required information does not exist\n");
+		printf("simulation file: all required information does not exist SimulationFileCheckList=%x, expected=%x xor=%x\n", SimulationFileCheckList, ((1 << 19) - 1), SimulationFileCheckList^((1 << 19) - 1));
 		return 1;
 	}
 

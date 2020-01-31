@@ -113,7 +113,7 @@ int ReadLibrryFile(CellTypeStruct** &CellTypes, int &NumberOfCellTypes, char* Li
 	while ((!LibraryRead) & (!feof(LibraryFile)))
 	{
 		Str1[0] = 0;
-		while (strcmp(Str1, "Library") & (!feof(LibraryFile)))
+		while ((strcmp(Str1, "Library") != 0) && (!feof(LibraryFile)))
 			ReadNonCommentFromFile(LibraryFile, Str1, "%");
 
 		if (!feof(LibraryFile))
@@ -123,7 +123,7 @@ int ReadLibrryFile(CellTypeStruct** &CellTypes, int &NumberOfCellTypes, char* Li
 			{
 				ReadNonCommentFromFile(LibraryFile, Str1, "%");
 
-				while (strcmp(Str1, "Library") & (!feof(LibraryFile)))
+				while (strcmp(Str1, "Library") !=0 && (!feof(LibraryFile)))
 				{
 					TempCellTypes = (CellTypeStruct **)malloc((NumberOfCellTypes + 1) * sizeof(CellTypeStruct *));
 					memcpy(TempCellTypes, CellTypes, NumberOfCellTypes * sizeof(CellTypeStruct *));
