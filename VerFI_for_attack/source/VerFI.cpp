@@ -29,19 +29,17 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "cstdio"
-#include "curses.h"
 #include "stdlib.h"
 #include "string.h"
 #include "time.h"
 #include "omp.h"
-#include "exprtk.hpp"
 
+#include "Util.h"
 #include "Definitions.h"
 #include "ReadLibraryFile.h"
 #include "ReadCellReportFile.h"
 #include "ReadDesignFile.h"
 #include "ReadSimulationFile.h"
-#include "PrintCheckTools.h"
 #include "SimulationTools.h"
 
 int main(int argc, char *argv[]) 

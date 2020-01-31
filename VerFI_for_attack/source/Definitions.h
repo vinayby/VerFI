@@ -29,7 +29,8 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //***************************************************************************************
-
+#ifndef DEFINITIONS_H
+#define DEFINITIONS_H
 #define Max_Name_Length   10000
 
 #define CellType_Gate     0
@@ -108,34 +109,4 @@ struct SimulationResultStruct {
 };
 
 //***************************************************************************************
-
-void StrReplaceChar(char *Str, char ch_source, char ch_destination)
-{
-	int i;
-
-	for (i = 0;i < strlen(Str);i++)
-	{
-		if (Str[i] == ch_source)
-			Str[i] = ch_destination;
-	}
-}
-
-//***************************************************************************************
-
-void ReadNonCommentFromFile(FILE* FileHeader, char* Str, const char* CommentSyntax)
-{
-	int  l;
-	char ch;
-
-	l = strlen(CommentSyntax);
-	do {
-		fscanf(FileHeader, "%s", Str);
-		if (!memcmp(CommentSyntax, Str, l))
-		{
-			do ch = fgetc(FileHeader);
-			while ((ch != '\n') & (!feof(FileHeader)));
-		}
-	} while ((!memcmp(CommentSyntax, Str, l)) & (!feof(FileHeader)));
-}
-
-//***************************************************************************************
+#endif /* !DEFINITIONS_H */
