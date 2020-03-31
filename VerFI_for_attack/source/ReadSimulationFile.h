@@ -34,15 +34,21 @@ int ReadSimulationFile(SignalStruct** Signals, int NumberOfSignals, char* InputS
 	CellStruct** Cells, int NumberOfCells, HierarchyStruct** Hierarchy, int &Max_no_of_Threads,
 	int &ClockSignal, int &Max_No_ClockCycles, int &InitialSim_NumberOfClockCycles,
 	int** &InitialSim_Inputs, char** &InitialSim_Values, int &InitialSim_NumberOfInputs,
-	int* &EndSimCondition_Signals, char* &EndSimCondition_Values, int &EndSimCondition_NumberOfSignals,
+	
+  int* &EndSimCondition_Signals, char* &EndSimCondition_Values, int &EndSimCondition_NumberOfSignals,
 	int &EndSim_NumberOfWaitCycles, char** &EndSim_OutputNames,
 	int* &EndSim_Outputs_IndexL, int* &EndSim_Outputs_IndexH,
 	char* &EndSim_Outputs_Base, int &EndSim_NumberOfOutputBlocks,
-	char &FaultInjectionType, int &NumberOfSimulationsInFile,
+  
+	char** &SignalsToTap_OutputNames,
+	int* &SignalsToTap_Outputs_IndexL, int* &SignalsToTap_Outputs_IndexH,
+	char* &SignalsToTap_Outputs_Base, int &SignalsToTap_NumberOfOutputBlocks,
+	
+  char &FaultInjectionType, int &NumberOfSimulationsInFile,
 	int  &NumberOfTargetClockCycles, int* &TargetClockCycles,
 	int  &MaxNumberOfFaultsPerRun, int &MinNumberOfFaultsPerRun,
 	int &MaxNumberOfFaultsPerCycle, int &MinNumberOfFaultsPerCycle,
-	int &NumberOfRandomInputs, int* &RandomInputs)
+	int &NumberOfRandomInputs, int* &RandomInputs, int &SelectCycleToTap)
 {
 	char  *Str1 = (char *)malloc(Max_Name_Length * sizeof(char));
 	char  *Str2 = (char *)malloc(Max_Name_Length * sizeof(char));
@@ -106,6 +112,12 @@ int ReadSimulationFile(SignalStruct** Signals, int NumberOfSignals, char* InputS
 			ReadNonCommentFromFile(SimulationFile, Str1, "%");
 			Max_No_ClockCycles = atoi(Str1);
 			SimulationFileCheckList |= (1 << 1);
+		}
+		else if (!strcmp(Str1, "select_clock_cycle_to_tap"))
+		{
+			ReadNonCommentFromFile(SimulationFile, Str1, "%");
+			SelectCycleToTap = atoi(Str1);
+			// SimulationFileCheckList |= (1 << NOT_A_REQUIRED_ITEM );
 		}
 		else if (!strcmp(Str1, "no_of_inputs"))
 		{
@@ -457,6 +469,72 @@ int ReadSimulationFile(SignalStruct** Signals, int NumberOfSignals, char* InputS
 			}
 
 			SimulationFileCheckList |= (1 << 6);
+		}
+
+		else if (!strcmp(Str1, "no_of_signals_to_tap"))
+		{
+			ReadNonCommentFromFile(SimulationFile, Str1, "%");
+			SignalsToTap_NumberOfOutputBlocks = atoi(Str1);
+
+			SignalsToTap_OutputNames = (char **)malloc(SignalsToTap_NumberOfOutputBlocks * sizeof(char *));
+			SignalsToTap_Outputs_IndexL = (int   *)malloc(SignalsToTap_NumberOfOutputBlocks * sizeof(int));
+			SignalsToTap_Outputs_IndexH = (int   *)malloc(SignalsToTap_NumberOfOutputBlocks * sizeof(int));
+			SignalsToTap_Outputs_Base = (char  *)malloc(SignalsToTap_NumberOfOutputBlocks * sizeof(char));
+
+			for (OutputIndex = 0;OutputIndex < SignalsToTap_NumberOfOutputBlocks;OutputIndex++)
+			{
+				ReadNonCommentFromFile(SimulationFile, Str1, "%");
+
+				if ((Str1[0] == '[') & (Str1[strlen(Str1) - 1] == ']'))
+				{
+					strcpy(Str2, Str1 + 1);
+					Str2[strlen(Str2) - 1] = 0;
+					str_ptr = strchr(Str2, ':');
+					*str_ptr = 0;
+					SignalsToTap_Outputs_IndexH[OutputIndex] = atoi(Str2);
+					SignalsToTap_Outputs_IndexL[OutputIndex] = atoi(str_ptr + 1);
+
+					ReadNonCommentFromFile(SimulationFile, Str1, "%");
+				}
+				else
+				{
+					SignalsToTap_Outputs_IndexL[OutputIndex] = -1;
+					SignalsToTap_Outputs_IndexH[OutputIndex] = -1;
+				}
+
+				SignalsToTap_OutputNames[OutputIndex] = (char *)malloc(strlen(Str1) + 2);
+				strcpy(SignalsToTap_OutputNames[OutputIndex], Str1);
+				ReadNonCommentFromFile(SimulationFile, Str1, "%");
+
+				strcpy(Str2, Str1);
+				str_ptr = strchr(Str2, '\'');
+				*str_ptr = 0;
+				j = atoi(Str2);
+				if (j != (SignalsToTap_Outputs_IndexH[OutputIndex] - SignalsToTap_Outputs_IndexL[OutputIndex] + 1))
+				{
+					printf("simulation file: length ""%s"" does not match to the given size\n", Str1);
+					fclose(SimulationFile);
+					free(Str1);
+					free(Str2);
+					return 1;
+				}
+
+				strcpy(Str2, str_ptr + 1);
+				if (Str2[0] == 'h')
+					SignalsToTap_Outputs_Base[OutputIndex] = 16;
+				else if (Str2[0] == 'b')
+					SignalsToTap_Outputs_Base[OutputIndex] = 2;
+				else
+				{
+					printf("simulation file: base not known in ""%s""\n", Str1);
+					fclose(SimulationFile);
+					free(Str1);
+					free(Str2);
+					return 1;
+				}
+			}
+
+			// SimulationFileCheckList |= (1 << NOT_A_REQUIRED_ITEM );
 		}
 		else if (!strcmp(Str1, "faul_injection_include"))
 		{

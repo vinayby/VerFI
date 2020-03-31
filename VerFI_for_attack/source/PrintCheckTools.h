@@ -203,9 +203,9 @@ void CheckResults(int ClockCycleFaultFree, int ClockCycleFaulty, int Max_No_Cloc
 	if (SimulationResult.Result == Result_Ineffective)
 		strcat(Str1, "1\n");
 	else
-		strcat(Str1, "0\n");
+		strcat(Str1, "0 D_ND_RTO: %d\n", SimulationResult.Result);
 
-	SimulationResult.Output = (char *)malloc(strlen(Str1) * sizeof(char));
+	SimulationResult.Output = (char *)malloc((strlen(Str1) + 2)* sizeof(char));
 	strcpy(SimulationResult.Output, Str1);
 
 	free(Str1);

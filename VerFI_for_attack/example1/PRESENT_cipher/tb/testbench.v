@@ -65,6 +65,13 @@ initial
 begin
     $monitor($realtime,,"ps %h (valid=%h) %h %h %h ",data_o,data_o_valid, data_i,clk_i,rst);
     #0 cointoss = 1;
+
+    key_i= 80'h18F4EEBDFCED7841D9E0; rst = 1;
+    data_i= 80'h7cf19d070efec04e7412; 
+    #10 rst = 0;
+    #330 $finish;
+
+
     #0   key_i = 80'h00000000_00000000_0000 ;  rst = 1; 
          data_i = 64'h00000000_00000000     ;
     #10  rst = 0;

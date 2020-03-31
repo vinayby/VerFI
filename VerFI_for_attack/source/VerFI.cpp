@@ -42,6 +42,8 @@
 #include "ReadSimulationFile.h"
 #include "SimulationTools.h"
 
+#include <mcheck.h>
+
 int main(int argc, char *argv[]) 
 {
 	char *LibraryFileName = (char *)malloc(Max_Name_Length * sizeof(char));
@@ -52,6 +54,7 @@ int main(int argc, char *argv[])
 	char *MainModuleName = (char *)malloc(Max_Name_Length * sizeof(char));
 	char *SummaryFileName = (char *)malloc(Max_Name_Length * sizeof(char));
 	char *ResultFileName = (char *)malloc(Max_Name_Length * sizeof(char));
+  int RndSeed = -1;
 	int  i;
 
 	LibraryFileName[0] = 0;
@@ -70,7 +73,7 @@ int main(int argc, char *argv[])
 			printf("usage:\n");
 			printf("VerFI.exe [-lf/-libraryfile ?] [-ln/-libraryname    ?] [-df/-designfile     ?]\n");
 			printf("          [-mn/-modulename  ?] [-cf/-cellreportfile ?] [-sf/-simulationfile ?]\n");
-			printf("          [-uf/-summaryfile ?] [-rf/-resultfile  ?]\n");
+			printf("          [-uf/-summaryfile ?] [-rf/-resultfile  ?] [-sd seed]\n");
 			return 0;
 		}
 	}
@@ -100,7 +103,11 @@ int main(int argc, char *argv[])
 			strcpy(SummaryFileName, argv[i + 1]);
 
 		if ((!strcmp(argv[i], "-rf")) | (!strcmp(argv[i], "-resultfile")))
-			strcpy(ResultFileName, argv[i + 1]);
+      strcpy(ResultFileName, argv[i + 1]);
+
+    if ((!strcmp(argv[i], "-sd")) | (!strcmp(argv[i], "-rndseed"))) {
+      RndSeed = atoi(argv[i+1]); 
+    }
 
 		i += 2;
 	}
@@ -221,12 +228,20 @@ int main(int argc, char *argv[])
 	char  *EndSimCondition_Values = NULL;
 	int   EndSimCondition_NumberOfSignals;
 	int   EndSim_NumberOfWaitCycles;
-	char  **EndSim_OutputNames = NULL;
+	
+  char  **EndSim_OutputNames = NULL;
 	int   *EndSim_Outputs_IndexL = NULL;
 	int   *EndSim_Outputs_IndexH = NULL;
 	char  *EndSim_Outputs_Base = NULL;
 	int   EndSim_NumberOfOutputBlocks;
-	int   Max_no_of_Threads;
+	
+  char  **SignalsToTap_OutputNames = NULL;
+	int   *SignalsToTap_Outputs_IndexL = NULL;
+	int   *SignalsToTap_Outputs_IndexH = NULL;
+	char  *SignalsToTap_Outputs_Base = NULL;
+	int   SignalsToTap_NumberOfOutputBlocks = -1;
+  
+  int   Max_no_of_Threads;
 	char  FaultInjectionType;
 	int   NumberOfSimulationsInFile;
 	int   NumberOfTargetClockCycles;
@@ -237,6 +252,7 @@ int main(int argc, char *argv[])
 	int   MinNumberOfFaultsPerCycle;
 	int   NumberOfRandomInputs;
 	int   *RandomInputs = NULL;
+	int   SelectCycleToTap = -1;
 
 	if (!res)
 		res = ReadSimulationFile(Signals, NumberOfSignals, InputSimulationFileName,
@@ -247,22 +263,39 @@ int main(int argc, char *argv[])
 			EndSim_NumberOfWaitCycles, EndSim_OutputNames,
 			EndSim_Outputs_IndexL, EndSim_Outputs_IndexH,
 			EndSim_Outputs_Base, EndSim_NumberOfOutputBlocks,
-			FaultInjectionType, NumberOfSimulationsInFile,
+
+	SignalsToTap_OutputNames,
+	SignalsToTap_Outputs_IndexL, SignalsToTap_Outputs_IndexH,
+	SignalsToTap_Outputs_Base, SignalsToTap_NumberOfOutputBlocks,
+		
+  FaultInjectionType, NumberOfSimulationsInFile,
 			NumberOfTargetClockCycles, TargetClockCycles,
 			MaxNumberOfFaultsPerRun, MinNumberOfFaultsPerRun,
 			MaxNumberOfFaultsPerCycle, MinNumberOfFaultsPerCycle,
-			NumberOfRandomInputs, RandomInputs);
+			NumberOfRandomInputs, RandomInputs, SelectCycleToTap);
+
+  if (SelectCycleToTap == -1)
+    SelectCycleToTap = TargetClockCycles[0]; // TODO:
 
 	//---------------------------------------------------------------------------------------------//
 	//------------------- make selected outputs ---------------------------------------------------//
 
 	int  **EndSim_OutputsInBlock = NULL;
 	int  *EndSim_NumberOfOutputsInBlock = NULL;
+	
+  int  **SignalsToTap_OutputsInBlock = NULL;
+	int  *SignalsToTap_NumberOfOutputsInBlock = NULL;
 
-	if (!res)
-		res = MakeSelectedOutputs(EndSim_OutputNames, EndSim_Outputs_IndexL, EndSim_Outputs_IndexH,
-			EndSim_NumberOfOutputBlocks, Signals, NumberOfSignals,
-			EndSim_OutputsInBlock, EndSim_NumberOfOutputsInBlock);
+	if (!res) {
+    res = MakeSelectedOutputs(EndSim_OutputNames, EndSim_Outputs_IndexL, EndSim_Outputs_IndexH,
+                              EndSim_NumberOfOutputBlocks, Signals, NumberOfSignals,
+                              EndSim_OutputsInBlock, EndSim_NumberOfOutputsInBlock);
+    if (SignalsToTap_NumberOfOutputBlocks != -1) {
+      res = MakeSelectedOutputs(SignalsToTap_OutputNames, SignalsToTap_Outputs_IndexL, SignalsToTap_Outputs_IndexH,
+                                SignalsToTap_NumberOfOutputBlocks, Signals, NumberOfSignals,
+                                SignalsToTap_OutputsInBlock, SignalsToTap_NumberOfOutputsInBlock);
+    }
+  }
 	
 	//---------------------------------------------------------------------------------------------//
 	//------------------- run simulation with fault injection -------------------------------------//
@@ -287,7 +320,10 @@ int main(int argc, char *argv[])
 			EndSim_OutputNames, EndSim_Outputs_IndexL, EndSim_Outputs_IndexH,
 			EndSim_Outputs_Base, EndSim_NumberOfOutputBlocks,
 			EndSim_OutputsInBlock, EndSim_NumberOfOutputsInBlock,
-			SimulationResults, NumberOfSimulations);
+			SignalsToTap_OutputNames, SignalsToTap_Outputs_IndexL, SignalsToTap_Outputs_IndexH,
+			SignalsToTap_Outputs_Base, SignalsToTap_NumberOfOutputBlocks,
+			SignalsToTap_OutputsInBlock, SignalsToTap_NumberOfOutputsInBlock,
+			SimulationResults, NumberOfSimulations, SelectCycleToTap, RndSeed);
 
 	//---------------------------------------------------------------------------------------------//
 	//------------------- print the result in file ------------------------------------------------//
@@ -297,13 +333,11 @@ int main(int argc, char *argv[])
 	if (res)
 	{
 		printf("\nerror");
-		getch();
 		return 1;
 	}
 	else
 	{
 		printf("done");
-		//getch();
 		return 0;
 	}
 

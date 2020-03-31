@@ -126,7 +126,7 @@ int RunSimulation(SignalStruct** Signals, int ClockSignal, int Max_No_ClockCycle
 	short MaxDepth, int** CellsInDepth, int* NumberOfCellsInDepth, CellTypeStruct** CellTypes,
 	int* EndSimCondition_Signals, char* EndSimCondition_Values,
 	int EndSimCondition_NumberOfSignals, int EndSim_NumberOfWaitCycles,
-	int* SignalValues, int* RegValues, char*** Faults)
+	int* SignalValues, int* SignalValuesAt1SelectCycle, int SelectCycleToTap, int* RegValues, char*** Faults)
 {
 	int  i;
 	int  InputIndex;
@@ -175,8 +175,13 @@ int RunSimulation(SignalStruct** Signals, int ClockSignal, int Max_No_ClockCycle
 
 		for (RegIndex = 0;RegIndex < NumberOfRegs;RegIndex++)
 			for (OutputIndex = 0;OutputIndex < Cells[Regs[RegIndex]]->NumberOfOutputs;OutputIndex++)
-				if (Cells[Regs[RegIndex]]->Outputs[OutputIndex] != -1)
+				if (Cells[Regs[RegIndex]]->Outputs[OutputIndex] != -1) {
 					SignalValues[Cells[Regs[RegIndex]]->Outputs[OutputIndex]] = RegValues[Cells[Regs[RegIndex]]->RegValueIndexes[OutputIndex]];
+
+          if (ClockCycle == SelectCycleToTap) {
+					  SignalValuesAt1SelectCycle[Cells[Regs[RegIndex]]->Outputs[OutputIndex]] = SignalValues[Cells[Regs[RegIndex]]->Outputs[OutputIndex]];
+          }
+        }
 
 		// ----------- evaluate the circuits :D
 
@@ -198,6 +203,10 @@ int RunSimulation(SignalStruct** Signals, int ClockSignal, int Max_No_ClockCycle
 						Value |= Faults[FaultInjection_stuck_at_1][ClockCycle][CellIndex];
 						Value &= !Faults[FaultInjection_stuck_at_0][ClockCycle][CellIndex];
 						SignalValues[Cells[CellIndex]->Outputs[OutputIndex]] = Value;
+
+            if (ClockCycle == SelectCycleToTap) {
+              SignalValuesAt1SelectCycle[Cells[CellIndex]->Outputs[OutputIndex]] = Value;
+            }
 					}
 			}
 		}
@@ -283,6 +292,56 @@ int MakeSelectedOutputs(char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, i
 	return 0;
 }
 
+
+// Note: Replicates MakeSelectedOutputs function as-is, and retains EndSim_ prefix for convenience
+// i.e., read signals with SelectedSignalsToTap_ prefix
+int MakeSelectedSignalsToTap(char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
+	int EndSim_NumberOfOutputBlocks, SignalStruct** Signals, int NumberOfSignals,
+	int** &EndSim_OutputsInBlock, int* &EndSim_NumberOfOutputsInBlock)
+{
+	char *Str1 = (char *)malloc(Max_Name_Length * sizeof(char));
+	int  j;
+	int  OutputIndex;
+	int  SignalIndex;
+	int  IndexH, IndexL;
+
+	EndSim_OutputsInBlock = (int**)malloc(EndSim_NumberOfOutputBlocks * sizeof(int*));
+	EndSim_NumberOfOutputsInBlock = (int*)malloc(EndSim_NumberOfOutputBlocks * sizeof(int));
+
+	for (OutputIndex = 0;OutputIndex < EndSim_NumberOfOutputBlocks;OutputIndex++)
+	{
+		EndSim_NumberOfOutputsInBlock[OutputIndex] = (EndSim_Outputs_IndexH[OutputIndex] - EndSim_Outputs_IndexL[OutputIndex] + 1);
+		EndSim_OutputsInBlock[OutputIndex] = (int *)malloc(EndSim_NumberOfOutputsInBlock[OutputIndex] * sizeof(int));
+
+		IndexL = EndSim_Outputs_IndexL[OutputIndex];
+		IndexH = EndSim_Outputs_IndexH[OutputIndex];
+
+		for (j = IndexL;j <= IndexH;j++)
+		{
+			if (IndexL != -1)
+				sprintf(Str1, "%s[%d]", EndSim_OutputNames[OutputIndex], j);
+			else
+				sprintf(Str1, "%s", EndSim_OutputNames[OutputIndex]);
+
+			for (SignalIndex = 0;SignalIndex < NumberOfSignals;SignalIndex++)
+				if (!strcmp(Signals[SignalIndex]->Name, Str1))
+					break;
+
+			if (SignalIndex >= NumberOfSignals)
+			{
+				printf("simulation: signal ""%s"" specified for tapping, not found", Str1);
+				free(Str1);
+				return 1;
+			}
+
+			EndSim_OutputsInBlock[OutputIndex][j - IndexL] = SignalIndex;
+		}
+	}
+
+	free(Str1);
+	return 0;
+}
+
 //***************************************************************************************
 
 int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberOfSignals,
@@ -301,7 +360,10 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
 	char* EndSim_Outputs_Base, int EndSim_NumberOfOutputBlocks,
 	int** EndSim_OutputsInBlock, int* EndSim_NumberOfOutputsInBlock,
-	SimulationResultStruct* &SimulationResults, int &NumberOfSimulations)
+	char** SignalsToTap_OutputNames, int* SignalsToTap_Outputs_IndexL, int* SignalsToTap_Outputs_IndexH,
+	char* SignalsToTap_Outputs_Base, int SignalsToTap_NumberOfOutputBlocks,
+	int** SignalsToTap_OutputsInBlock, int* SignalsToTap_NumberOfOutputsInBlock,
+	SimulationResultStruct* &SimulationResults, int &NumberOfSimulations, int SelectCycleToTap, int RndSeed)
 {
 	int  CellIndex;
 	int  *FaultAllowedCells;
@@ -311,6 +373,7 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	int  ClockCycleFaultFree;
 	int  ClockCycleFaulty;
 	int  **SignalValues = NULL;
+	int  **SignalValuesAt1SelectCycle = NULL;
 	int  **RegValues = NULL;
 	int  **RandomInputValues = NULL;
 	char ****Faults = NULL;
@@ -354,6 +417,7 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 			FaultAllowedCells[NumberOfFaultAllowedCells++] = CellIndex;
 
 	SignalValues = (int **)malloc(Max_no_of_Threads * sizeof(int *));
+	SignalValuesAt1SelectCycle = (int **)malloc(Max_no_of_Threads * sizeof(int *));
 	RegValues = (int **)malloc(Max_no_of_Threads * sizeof(int *));
 	RandomInputValues = (int **)malloc(Max_no_of_Threads * sizeof(int *));
 	Faults = (char ****)malloc(Max_no_of_Threads * sizeof(char ***));
@@ -367,10 +431,13 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	for (ThreadIndex = 0;ThreadIndex < Max_no_of_Threads;ThreadIndex++)
 	{
 		SignalValues[ThreadIndex] = (int *)calloc(NumberOfSignals, sizeof(int));
+		SignalValuesAt1SelectCycle[ThreadIndex] = (int *)calloc(NumberOfSignals, sizeof(int));
+
 		RegValues[ThreadIndex] = (int *)calloc(NumberOfRegValues, sizeof(int));
 		RandomInputValues[ThreadIndex] = (int *)malloc(NumberOfRandomInputs * sizeof(int));
 		Faults[ThreadIndex] = (char ***)malloc(NumberOfFaultInjectionTypes * sizeof(char **));
 		SignalValues[ThreadIndex][1] = 1;    // constant 1'b1
+		SignalValuesAt1SelectCycle[ThreadIndex][1] = 1;    // constant 1'b1
 		FaultFreeOutputValues[ThreadIndex] = (int**)malloc(EndSim_NumberOfOutputBlocks * sizeof(int*));
 
 		for (i = 0;i < NumberOfFaultInjectionTypes;i++)
@@ -401,7 +468,6 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	if (NumberOfSimulations > 600000000L)
 	{
 		printf("Number of simulations %d is over the threshold", NumberOfSimulations);
-		getch();
 
 		return 1;
 	}
@@ -417,16 +483,21 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	SummaryFile = fopen(SummaryFileName, "wt");
 	begin = clock();
 
+  if (RndSeed != -1) {
+    srand(int(RndSeed)); 
+  }
+
 	#pragma omp parallel for schedule(guided) private(ThreadIndex, ClockCycleIndex, ClockCycle, ClockCycleFaultFree, ClockCycleFaulty, i, j, k, LocalIndex, InputIndex, OutputIndex, SelectedNumberOfInjectedFaults, NumberOfInjectedFaults, NumberOfFaultsInCycle, TotalDetected, TotalNondetected, TotalIneffective, TotalRunTimeOver)
 	for (SimulationIndex = 0;SimulationIndex < NumberOfSimulations; SimulationIndex++)
 	{
 		ThreadIndex = omp_get_thread_num();
 		if (!Seeded[ThreadIndex])
 		{
-			srand(int(time(NULL)) ^ ThreadIndex);
-			Seeded[ThreadIndex] = 1;
+      if (RndSeed == -1) {
+        srand(int(time(NULL)) ^ ThreadIndex); 
+      } 	
+      Seeded[ThreadIndex] = 1;
 		}
-
 		SimulationResults[SimulationIndex].TaregtCells = (int *)malloc(MaxNumberOfFaultsPerRun * sizeof(int));
 		SimulationResults[SimulationIndex].TaregtClockCycles = (int *)malloc(MaxNumberOfFaultsPerRun * sizeof(int));
 
@@ -471,9 +542,21 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 
 		SimulationResults[SimulationIndex].Valid = 1;
 		SimulationResults[SimulationIndex].NumberOfInjectedFaults = NumberOfInjectedFaults;
-
-		for (InputIndex = 0;InputIndex < NumberOfRandomInputs;InputIndex++)
+    
+#if defined(ALL_SIMS_USE_SAME_RND_DECISIONS)
+    //TEMP hack:  override with first selection of fault locations
+    if (SimulationIndex > 0) {
+      for(unsigned e = 0; e < SimulationResults[0].NumberOfInjectedFaults; e++) { // ^^ some alignment issue segfault
+        SimulationResults[SimulationIndex].TaregtCells[e] = SimulationResults[0].TaregtCells[e];
+        SimulationResults[SimulationIndex].TaregtClockCycles[e] = SimulationResults[0].TaregtClockCycles[e];
+      }
+		  SimulationResults[SimulationIndex].NumberOfInjectedFaults = SimulationResults[0].NumberOfInjectedFaults;
+    }
+#endif
+		for (InputIndex = 0;InputIndex < NumberOfRandomInputs;InputIndex++) {
 			SignalValues[ThreadIndex][RandomInputs[InputIndex]] = rand() & 1;
+			SignalValuesAt1SelectCycle[ThreadIndex][RandomInputs[InputIndex]] = SignalValues[ThreadIndex][RandomInputs[InputIndex]];
+    }
 
 		ClockCycleFaultFree = RunSimulation(Signals, ClockSignal, Max_No_ClockCycles,
 			InitialSim_NumberOfClockCycles, InitialSim_NumberOfInputs,
@@ -482,7 +565,8 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 			MaxDepth, CellsInDepth, NumberOfCellsInDepth, CellTypes,
 			EndSimCondition_Signals, EndSimCondition_Values,
 			EndSimCondition_NumberOfSignals, EndSim_NumberOfWaitCycles,
-			SignalValues[ThreadIndex], RegValues[ThreadIndex], Faults[ThreadIndex]);
+			//SignalValues[ThreadIndex],SignalValuesAt1SelectCycle[ThreadIndex], SelectCycleToTap, RegValues[ThreadIndex], Faults[ThreadIndex]);
+			SignalValues[ThreadIndex],SignalValuesAt1SelectCycle[ThreadIndex], SelectCycleToTap, RegValues[ThreadIndex], Faults[ThreadIndex]);
 
 		for (BlockIndex = 0;BlockIndex < EndSim_NumberOfOutputBlocks;BlockIndex++)
 			for (OutputIndex = 0;OutputIndex < EndSim_NumberOfOutputsInBlock[BlockIndex];OutputIndex++)
@@ -491,6 +575,8 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 		for (i = 0;i < NumberOfInjectedFaults;i++)
 			Faults[ThreadIndex][FaultInjectionType][SimulationResults[SimulationIndex].TaregtClockCycles[i]][SimulationResults[SimulationIndex].TaregtCells[i]] = 1;
 
+    //NB: fault-free/faulty SignalValuesAt1SelectCycle
+
 		ClockCycleFaulty = RunSimulation(Signals, ClockSignal, Max_No_ClockCycles,
 			InitialSim_NumberOfClockCycles, InitialSim_NumberOfInputs,
 			InitialSim_Inputs, InitialSim_Values,
@@ -498,14 +584,20 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 			MaxDepth, CellsInDepth, NumberOfCellsInDepth, CellTypes,
 			EndSimCondition_Signals, EndSimCondition_Values,
 			EndSimCondition_NumberOfSignals, EndSim_NumberOfWaitCycles,
-			SignalValues[ThreadIndex], RegValues[ThreadIndex], Faults[ThreadIndex]);
+			//SignalValues[ThreadIndex], SignalValuesAt1SelectCycle[ThreadIndex], SelectCycleToTap, RegValues[ThreadIndex], Faults[ThreadIndex]);
+			SignalValues[ThreadIndex], SignalValuesAt1SelectCycle[ThreadIndex], -1, RegValues[ThreadIndex], Faults[ThreadIndex]);
 
 		CheckResults(ClockCycleFaultFree, ClockCycleFaulty, Max_No_ClockCycles,
 			EndSim_OutputNames, EndSim_Outputs_IndexL, EndSim_Outputs_IndexH,
 			EndSim_Outputs_Base, EndSim_NumberOfOutputBlocks,
 			EndSim_OutputsInBlock, EndSim_NumberOfOutputsInBlock,
-			Signals, NumberOfSignals, FaultFreeOutputValues[ThreadIndex],
-			SignalValues[ThreadIndex], SimulationResults[SimulationIndex],
+
+			SignalsToTap_OutputNames, SignalsToTap_Outputs_IndexL, SignalsToTap_Outputs_IndexH,
+			SignalsToTap_Outputs_Base, SignalsToTap_NumberOfOutputBlocks,
+			SignalsToTap_OutputsInBlock, SignalsToTap_NumberOfOutputsInBlock,
+			
+      Signals, NumberOfSignals, FaultFreeOutputValues[ThreadIndex],
+			SignalValues[ThreadIndex], SignalValuesAt1SelectCycle[ThreadIndex], SimulationResults[SimulationIndex],
 			NumberOfRandomInputs, RandomInputs, IneffectiveCounter[ThreadIndex],
 			NondetectedCounter[ThreadIndex], DetectedCounter[ThreadIndex],
 			RunTimeOverCounter[ThreadIndex]);
@@ -575,12 +667,17 @@ void CheckResults(int ClockCycleFaultFree, int ClockCycleFaulty, int Max_No_Cloc
 	char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
 	char* EndSim_Outputs_Base, int EndSim_NumberOfOutputBlocks,
 	int** EndSim_OutputsInBlock, int* EndSim_NumberOfOutputsInBlock,
-	SignalStruct** Signals, int NumberOfSignals, int** FaultFreeOutputValues,
-	int* SignalValues, SimulationResultStruct &SimulationResult,
+
+	char** SignalsToTap_OutputNames, int* SignalsToTap_Outputs_IndexL, int* SignalsToTap_Outputs_IndexH,
+	char* SignalsToTap_Outputs_Base, int SignalsToTap_NumberOfOutputBlocks,
+	int** SignalsToTap_OutputsInBlock, int* SignalsToTap_NumberOfOutputsInBlock,
+	
+  SignalStruct** Signals, int NumberOfSignals, int** FaultFreeOutputValues,
+	int* SignalValues, int *SignalValuesAt1SelectCycle, SimulationResultStruct &SimulationResult,
 	int NumberOfRandomInputs, int* RandomInputs,
 	int &IneffectiveCounter, int &NondetectedCounter, int &DetectedCounter, int &RunTimeOverCounter)
 {
-	char *Str1 = (char *)malloc(Max_Name_Length * sizeof(char));
+	char *Str1 = (char *)malloc(2*Max_Name_Length * sizeof(char));
 	char *Str2 = (char *)malloc(Max_Name_Length * sizeof(char));
 	char *Str3 = (char *)malloc(Max_Name_Length * sizeof(char));
 	char *Str4 = (char *)malloc(Max_Name_Length * sizeof(char));
@@ -739,14 +836,62 @@ void CheckResults(int ClockCycleFaultFree, int ClockCycleFaulty, int Max_No_Cloc
 
 	strcat(Str1, " (faulty)");
 	strcat(Str1, Str2);
+	
+  //---  faulty outputs, at a select clock cycle
+#if 1
+	Str2[0] = 0;
+	for (BlockIndex = 0;BlockIndex < SignalsToTap_NumberOfOutputBlocks;BlockIndex++)
+	{
+		strcat(Str2, " ");
+		strcat(Str2, SignalsToTap_OutputNames[BlockIndex]);
+		strcat(Str2, ": ");
+
+		sprintf(Str2, "%s%d'%c", Str2, SignalsToTap_NumberOfOutputsInBlock[BlockIndex],
+			(SignalsToTap_Outputs_Base[BlockIndex] == 16) ? 'h' : 'b');
+
+		Str3[0] = 0;
+		v = 0;
+		for (OutputIndex = 0;OutputIndex < SignalsToTap_NumberOfOutputsInBlock[BlockIndex];OutputIndex++)
+		{
+			if (SignalsToTap_Outputs_Base[BlockIndex] == 16)
+			{
+				i = OutputIndex % 4;
+				v |= SignalValuesAt1SelectCycle[SignalsToTap_OutputsInBlock[BlockIndex][OutputIndex]] << i;
+//         printf(" %d ", SignalsToTap_OutputsInBlock[BlockIndex][OutputIndex]  );
+
+				if ((i == 3) | (OutputIndex == (SignalsToTap_NumberOfOutputsInBlock[BlockIndex] - 1)))
+				{
+					sprintf(Str4, "%x%s", v, Str3);
+					strcpy(Str3, Str4);
+					v = 0;
+				}
+			}
+			else if (SignalsToTap_Outputs_Base[BlockIndex] == 2)
+			{
+				sprintf(Str4, "%d%s", SignalValuesAt1SelectCycle[SignalsToTap_OutputsInBlock[BlockIndex][OutputIndex]], Str3);
+				strcpy(Str3, Str4);
+			}
+		}
+
+		strcat(Str2, Str3);
+//   printf("xx: %s\n", Str2);
+  fflush(stdout);
+	}
+#endif
+	strcat(Str1, " (faultySelectCC)");
+	strcat(Str1, Str2);
 
 	strcat(Str1, " ineffective: ");
 	if (SimulationResult.Result == Result_Ineffective)
 		strcat(Str1, "1\n");
-	else
-		strcat(Str1, "0\n");
+	else if (SimulationResult.Result == Result_Detected)
+		strcat(Str1, "0  D\n");
+	else if (SimulationResult.Result == Result_Nondetected)
+		strcat(Str1, "0  ND\n");
+	else if (SimulationResult.Result == Result_RunTimeOver)
+		strcat(Str1, "0  RTO\n");
 
-	SimulationResult.Output = (char *)malloc(strlen(Str1) * sizeof(char));
+	SimulationResult.Output = (char *)malloc((strlen(Str1)+1) * sizeof(char));
 	strcpy(SimulationResult.Output, Str1);
 
 	free(Str1);

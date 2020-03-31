@@ -31,7 +31,7 @@
 //***************************************************************************************
 #ifndef SIMULATIONTOOLS_H
 #define SIMULATIONTOOLS_H
-#include "curses.h"
+#include <cstdio>
 #include "Definitions.h"
 int MakeCircuitDepth(SignalStruct** Signals, int NumberOfSignals, CellTypeStruct** CellTypes, CellStruct** Cells,
 	int* Gates, int NumberOfGates, short &MaxDepth, int** &CellsInDepth, int* &NumberOfCellsInDepth);
@@ -44,7 +44,7 @@ int RunSimulation(SignalStruct** Signals, int ClockSignal, int Max_No_ClockCycle
 	short MaxDepth, int** CellsInDepth, int* NumberOfCellsInDepth, CellTypeStruct** CellTypes,
 	int* EndSimCondition_Signals, char* EndSimCondition_Values,
 	int EndSimCondition_NumberOfSignals, int EndSim_NumberOfWaitCycles,
-	int* SignalValues, int* RegValues, char*** Faults);
+	int* SignalValues, int* SignalValuesAt1SelectCycle, int SelectCycleToTap, int* RegValues, char*** Faults);
 
 int MakeSelectedOutputs(char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
 	int EndSim_NumberOfOutputBlocks, SignalStruct** Signals, int NumberOfSignals,
@@ -64,18 +64,29 @@ int RunFaultInjection(int Max_no_of_Threads, SignalStruct** Signals, int NumberO
 	short MaxDepth, int** CellsInDepth, int* NumberOfCellsInDepth, CellTypeStruct** CellTypes,
 	int* EndSimCondition_Signals, char* EndSimCondition_Values,
 	int EndSimCondition_NumberOfSignals, int EndSim_NumberOfWaitCycles,
-	char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
+	
+  char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
 	char* EndSim_Outputs_Base, int EndSim_NumberOfOutputBlocks,
 	int** EndSim_OutputsInBlock, int* EndSim_NumberOfOutputsInBlock,
-	SimulationResultStruct* &SimulationResults, int &NumberOfSimulations);
+  
+  char** SignalsToTap_OutputNames, int* SignalsToTap_Outputs_IndexL, int* SignalsToTap_Outputs_IndexH,
+	char* SignalsToTap_Outputs_Base, int SignalsToTap_NumberOfOutputBlocks,
+	int** SignalsToTap_OutputsInBlock, int* SignalsToTap_NumberOfOutputsInBlock,
+
+	SimulationResultStruct* &SimulationResults, int &NumberOfSimulations, int SelectCycleToTap, int RndSeed);
 
 
 void CheckResults(int ClockCycleFaultFree, int ClockCycleFaulty, int Max_No_ClockCycles,
 	char** EndSim_OutputNames, int* EndSim_Outputs_IndexL, int* EndSim_Outputs_IndexH,
 	char* EndSim_Outputs_Base, int EndSim_NumberOfOutputBlocks,
 	int** EndSim_OutputsInBlock, int* EndSim_NumberOfOutputsInBlock,
-	SignalStruct** Signals, int NumberOfSignals, int** FaultFreeOutputValues,
-	int* SignalValues, SimulationResultStruct &SimulationResult,
+	
+  char** SignalsToTap_OutputNames, int* SignalsToTap_Outputs_IndexL, int* SignalsToTap_Outputs_IndexH,
+	char* SignalsToTap_Outputs_Base, int SignalsToTap_NumberOfOutputBlocks,
+	int** SignalsToTap_OutputsInBlock, int* SignalsToTap_NumberOfOutputsInBlock,
+	
+  SignalStruct** Signals, int NumberOfSignals, int** FaultFreeOutputValues,
+	int* SignalValues, int* SignalValuesAt1SelectCycle, SimulationResultStruct &SimulationResult,
 	int NumberOfRandomInputs, int* RandomInputs,
 	int &IneffectiveCounter, int &NondetectedCounter, int &DetectedCounter, int &RunTimeOverCounter);
 

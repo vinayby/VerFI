@@ -1,4 +1,5 @@
-FILENAME_IN=netlist/present_encryptor_top.v # post dc_shell, std_cell level netlist/file.v
+PREFIX=$1
+FILENAME_IN=netlist/${PREFIX}_present_encryptor_top.v # post dc_shell, std_cell level netlist/file.v
 lno_start=`grep --color=no "module present_encryptor_top" ${FILENAME_IN}  -n|cut -f1 -d:`
 lno_end=`grep --color=no -E  "wire[ ]*N1|wire[ ]*data_o_valid_*"                  ${FILENAME_IN}  -n|cut -f1 -d:`
 
@@ -18,4 +19,5 @@ perl -pi -e "s/([a-zA-Z0-9])\//\1_/g" design.v
 perl -pi -e "s/\(([a-zA-Z0-9_]*)  \[/\(\1\[/g" design.v 
 # remove the space after signal name for those that had a \ prefixed earlier: e.g., .PortA(U_sig_name )
 perl -pi -e "s/\(([a-zA-Z0-9_]*) \)/\(\1\)/g" design.v 
+mv design.v ${PREFIX}_design.v
 #../source/verfi_tool0 -lf Library.txt -ln NANG45 -df design.v -mn Cipher -cf cells.rpt -sf sim.txt -uf Summary.txt -rf Result.txt
